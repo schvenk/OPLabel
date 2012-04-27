@@ -95,7 +95,7 @@
         for (int i = 0; i < [stringsArray count]; i++) {
             NSString *word = [stringsArray objectAtIndex:i];
             
-            CGSize lineSize = [[line stringByAppendingFormat:@"%@ ", word] sizeWithFont:self.font];
+            CGSize lineSize = [[line stringByAppendingFormat:@"%@", word] sizeWithFont:self.font];
             if (lineSize.width <= self.frame.size.width) {
                 line = [line stringByAppendingFormat:@"%@ ", word];
                 [wordsToRemove addIndex:i];
