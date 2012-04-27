@@ -42,7 +42,7 @@
         [line drawAtPoint:[[linePositions objectAtIndex:i] CGPointValue] forWidth:self.frame.size.width withFont:self.font fontSize:self.font.pointSize lineBreakMode:UILineBreakModeClip baselineAdjustment:UIBaselineAdjustmentNone];
     }
     
-    //[self drawStrikethrough];
+    [self drawStrikethrough];
 }
 
 
@@ -78,6 +78,7 @@
         [self setNeedsDisplay];
     }
 }
+
 
 
 #pragma mark - Private Methods
@@ -149,21 +150,21 @@
 
 - (void)drawStrikethrough
 {
-/*    if (self.strikethrough) {
+    if (self.strikethrough) {
         if (lineLayers) {
             for (CAShapeLayer *layer in lineLayers) [layer removeFromSuperlayer];
         }
         
-        int actualNumberOfLines = MIN(slicedStrings.count, self.numberOfLines);
-        
         // Text is centered. Figure out where it starts vertically.
-        lineLayers = [[NSMutableArray alloc] initWithCapacity:numberOfLines];
-        float textStartY = self.frame.size.height/2 - textSize.height/2;
-        float lineY = textStartY + (3 * singleLineHeight/5);
-        for (int i=0;i<numberOfLines;i++) {
+        lineLayers = [[NSMutableArray alloc] initWithCapacity:linePositions.count];
+//        float textStartY = self.frame.size.height/2 - textSize.height/2;
+        float lineOffset = self.lineHeight/2;
+        for (int i=0;i<linePositions.count;i++) {
+            CGPoint textPos = [[linePositions objectAtIndex:i] CGPointValue];
+            float lineY = textPos.y + lineOffset;
             UIBezierPath *linePath = [[UIBezierPath alloc] init];
-            [linePath moveToPoint:CGPointMake(0, lineY)];
-            [linePath addLineToPoint:CGPointMake(textSize.width, lineY)];
+            [linePath moveToPoint:CGPointMake(textPos.x, lineY)];
+            [linePath addLineToPoint:CGPointMake(textPos.x + [[lineWidths objectAtIndex:i] floatValue], lineY)];
             
             CAShapeLayer *layer = [[CAShapeLayer alloc] init];
             layer.path = linePath.CGPath;
@@ -171,8 +172,6 @@
             layer.lineWidth = 2;
             [self.layer addSublayer:layer];
             [lineLayers addObject:layer];
-            
-            lineY += singleLineHeight;
         }
         
         if (self.animateChanges) {
@@ -200,7 +199,8 @@
         }
         lineLayers = nil;
         self.alpha = 1;
-    }*/
+    }
+    self.animateChanges = NO;
 }
 
 
