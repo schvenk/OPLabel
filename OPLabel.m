@@ -124,15 +124,16 @@
     }
     slicedStrings = newSlicedStrings;
 
+    int actualNumberOfLines = (self.numberOfLines > 0) ? MIN(slicedStrings.count, self.numberOfLines) : slicedStrings.count;
     NSMutableArray *newLinePositions = [NSMutableArray array];
-    for (int i = 0; i < slicedStrings.count; i++) {
-        if (i + 1 > self.numberOfLines && self.numberOfLines != 0)
-            break;
-        
+    // @todo Figure out where to start based on vertical alignment setting
+    // For now, just centering
+    float startY = self.frame.size.height/2 - (self.lineHeight * actualNumberOfLines)/2 + self.verticalOffset;
+    for (int i = 0; i < actualNumberOfLines; i++) {
         CGPoint pos;
         // calculate y based on anchor
         //int drawHeight = _anchorBottom ? (self.frame.size.height - (slicedStrings.count - i) * _lineHeight) : i * _lineHeight;        
-        pos.y = i * self.lineHeight;
+        pos.y = startY + (i * self.lineHeight);
         
         // calculate x based on textAlignment
         pos.x = 0;
@@ -157,7 +158,6 @@
         
         // Text is centered. Figure out where it starts vertically.
         lineLayers = [[NSMutableArray alloc] initWithCapacity:linePositions.count];
-//        float textStartY = self.frame.size.height/2 - textSize.height/2;
         float lineOffset = self.lineHeight/2;
         for (int i=0;i<linePositions.count;i++) {
             CGPoint textPos = [[linePositions objectAtIndex:i] CGPointValue];
