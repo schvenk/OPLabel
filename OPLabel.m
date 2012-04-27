@@ -88,7 +88,11 @@
     [super setFont:font];
 }
 
-
+- (float)getHeight
+{
+    [self calculateLinesOfText];
+    return (linePositions.count * self.lineHeight);
+}
 
 #pragma mark - Private Methods
 

@@ -12,4 +12,6 @@
 @property (nonatomic) UIControlContentVerticalAlignment contentVerticalAlignment;
 @property (nonatomic) float verticalOffset;
 
+- (float)getHeight;
+
 @end
