@@ -7,6 +7,8 @@
 
 @interface OPLabel ()
 {
+    float naturalLineHeight;
+    BOOL explicitLineHeight;
     NSMutableArray *lineLayers;
     CABasicAnimation *alphaAnim;
     NSArray *slicedStrings;
@@ -28,13 +30,19 @@
 @synthesize contentVerticalAlignment = _contentVerticalAlignment;
 
 
+- (id)initWithFrame:(CGRect)frame
+{
+    self = [super initWithFrame:frame];
+    if (self) {
+        naturalLineHeight = [@"M" sizeWithFont:self.font].height;
+        _lineHeight = naturalLineHeight;
+    }
+    return self;
+}
+
 - (void)drawTextInRect:(CGRect)rect {
     [self calculateLinesOfText];
     [self.textColor set];
-    
-    // @todo the original MSLabel implementation fails to use rect, so this
-    // currently does nothing.
-    if (self.verticalOffset) rect = CGRectOffset(rect, 0, self.verticalOffset);
     
     // linePositions is the only global array reflecting the actual number of lines
     for (int i = 0; i < linePositions.count; i++) {
@@ -51,16 +59,10 @@
 #pragma mark - Properties
 
 - (void)setLineHeight:(int)lineHeight {
-    if (_lineHeight == lineHeight) { return; }
+    if (!explicitLineHeight) explicitLineHeight = YES;
+    else if (_lineHeight == lineHeight) { return; }
     _lineHeight = lineHeight;
     [self setNeedsDisplay];
-}
-- (int)lineHeight
-{
-    if (!_lineHeight) {
-        _lineHeight = [@"M" sizeWithFont:self.font].height;
-    }
-    return _lineHeight;
 }
 
 - (void)setText:(NSString *)text
@@ -77,6 +79,13 @@
         _strikethrough = strikethrough;
         [self setNeedsDisplay];
     }
+}
+
+- (void)setFont:(UIFont *)font
+{
+    naturalLineHeight = [@"M" sizeWithFont:font].height;
+    if (!explicitLineHeight) _lineHeight = naturalLineHeight;
+    [super setFont:font];
 }
 
 
@@ -136,8 +145,7 @@
     for (int i = 0; i < actualNumberOfLines; i++) {
         CGPoint pos;
         // calculate y based on anchor
-        //int drawHeight = _anchorBottom ? (self.frame.size.height - (slicedStrings.count - i) * _lineHeight) : i * _lineHeight;        
-        pos.y = startY + (i * self.lineHeight);
+        pos.y = startY + (i * self.lineHeight) - (naturalLineHeight - self.lineHeight)/2;
         
         // calculate x based on textAlignment
         pos.x = 0;
@@ -162,7 +170,7 @@
         
         // Text is centered. Figure out where it starts vertically.
         lineLayers = [[NSMutableArray alloc] initWithCapacity:linePositions.count];
-        float lineOffset = self.lineHeight/2;
+        float lineOffset = naturalLineHeight/2;
         for (int i=0;i<linePositions.count;i++) {
             CGPoint textPos = [[linePositions objectAtIndex:i] CGPointValue];
             float lineY = textPos.y + lineOffset;
