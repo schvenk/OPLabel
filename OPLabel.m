@@ -22,10 +22,10 @@
 
 @implementation OPLabel
 @synthesize lineHeight = _lineHeight;
-//@synthesize anchorBottom = _anchorBottom;
 @synthesize strikethrough = _strikethrough;
 @synthesize animateChanges = _animateChanges;
 @synthesize verticalOffset = _verticalOffset;
+@synthesize contentVerticalAlignment = _contentVerticalAlignment;
 
 
 - (void)drawTextInRect:(CGRect)rect {
@@ -126,9 +126,13 @@
 
     int actualNumberOfLines = (self.numberOfLines > 0) ? MIN(slicedStrings.count, self.numberOfLines) : slicedStrings.count;
     NSMutableArray *newLinePositions = [NSMutableArray array];
-    // @todo Figure out where to start based on vertical alignment setting
-    // For now, just centering
-    float startY = self.frame.size.height/2 - (self.lineHeight * actualNumberOfLines)/2 + self.verticalOffset;
+    
+    // Figure out where to start drawing the text based on vertical alignment setting
+    float startY;
+    if (self.contentVerticalAlignment == UIControlContentVerticalAlignmentTop) startY = 0;
+    else if (self.contentVerticalAlignment == UIControlContentVerticalAlignmentBottom) startY = self.frame.size.height - (self.lineHeight * actualNumberOfLines);
+    else startY = self.frame.size.height/2 - (self.lineHeight * actualNumberOfLines)/2 + self.verticalOffset;
+    
     for (int i = 0; i < actualNumberOfLines; i++) {
         CGPoint pos;
         // calculate y based on anchor
