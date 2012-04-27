@@ -7,7 +7,7 @@
 @interface OPLabel : UILabel
 
 @property (nonatomic, assign) int lineHeight;
-@property (nonatomic, assign) BOOL anchorBottom;
+//@property (nonatomic, assign) BOOL anchorBottom;
 
 @property (nonatomic) BOOL strikethrough;
 @property (nonatomic) BOOL animateChanges;

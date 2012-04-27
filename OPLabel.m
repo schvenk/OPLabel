@@ -9,9 +9,12 @@
 {
     NSMutableArray *lineLayers;
     CABasicAnimation *alphaAnim;
+    NSArray *slicedStrings;
+    NSArray *lineWidths;
+    NSArray *linePositions;
 }
-- (NSArray *)stringsFromText:(NSString *)string;
-- (void)configureStrikethrough;
+- (void)calculateLinesOfText;
+- (void)drawStrikethrough;
 @end
 
 #define AnimationDuration 0.6
@@ -19,47 +22,27 @@
 
 @implementation OPLabel
 @synthesize lineHeight = _lineHeight;
-@synthesize anchorBottom = _anchorBottom;
+//@synthesize anchorBottom = _anchorBottom;
 @synthesize strikethrough = _strikethrough;
 @synthesize animateChanges = _animateChanges;
 @synthesize verticalOffset = _verticalOffset;
 
 
-- (id)initWithFrame:(CGRect)frame {
-    self = [super initWithFrame:frame];
-    if (self) {
-        _lineHeight = 10;
-    }
-    return self;
-}
-
 - (void)drawTextInRect:(CGRect)rect {
-    NSArray *slicedStrings = [self stringsFromText:self.text];
+    [self calculateLinesOfText];
     [self.textColor set];
     
     // @todo the original MSLabel implementation fails to use rect, so this
     // currently does nothing.
     if (self.verticalOffset) rect = CGRectOffset(rect, 0, self.verticalOffset);
     
-    for (int i = 0; i < slicedStrings.count; i++) {
-        if (i + 1 > self.numberOfLines && self.numberOfLines != 0)
-            break;
-        
+    // linePositions is the only global array reflecting the actual number of lines
+    for (int i = 0; i < linePositions.count; i++) {
         NSString *line = [slicedStrings objectAtIndex:i];
-        
-        // calculate drawHeight based on anchor
-        int drawHeight = _anchorBottom ? (self.frame.size.height - (slicedStrings.count - i) * _lineHeight) : i * _lineHeight;        
-        
-        // calculate drawWidth based on textAlignment
-        int drawWidth = 0;
-        if (self.textAlignment == UITextAlignmentCenter) {
-            drawWidth = floorf((self.frame.size.width - [line sizeWithFont:self.font].width) / 2);
-        } else if (self.textAlignment == UITextAlignmentRight) {
-            drawWidth = (self.frame.size.width - [line sizeWithFont:self.font].width);
-        }
-        
-        [line drawAtPoint:CGPointMake(drawWidth, drawHeight) forWidth:self.frame.size.width withFont:self.font fontSize:self.font.pointSize lineBreakMode:UILineBreakModeClip baselineAdjustment:UIBaselineAdjustmentNone];
+        [line drawAtPoint:[[linePositions objectAtIndex:i] CGPointValue] forWidth:self.frame.size.width withFont:self.font fontSize:self.font.pointSize lineBreakMode:UILineBreakModeClip baselineAdjustment:UIBaselineAdjustmentNone];
     }
+    
+    //[self drawStrikethrough];
 }
 
 
@@ -72,72 +55,106 @@
     _lineHeight = lineHeight;
     [self setNeedsDisplay];
 }
+- (int)lineHeight
+{
+    if (!_lineHeight) {
+        _lineHeight = [@"M" sizeWithFont:self.font].height;
+    }
+    return _lineHeight;
+}
 
 - (void)setText:(NSString *)text
 {
-    // @todo This is getting called like crazy. Why?
-    NSString *oldText = self.text;
-    [super setText:text];
-    if (![text isEqualToString:oldText])
-        [self configureStrikethrough];
+    if (![text isEqualToString:self.text]) {
+        [super setText:text];
+        [self setNeedsDisplay]; // @todo necessary?
+    }
 }
 
 - (void)setStrikethrough:(BOOL)strikethrough
 {
-    if (strikethrough == _strikethrough) return;
-    _strikethrough = strikethrough;
-    [self configureStrikethrough];
+    if (strikethrough != _strikethrough) {
+        _strikethrough = strikethrough;
+        [self setNeedsDisplay];
+    }
 }
 
 
 #pragma mark - Private Methods
 
-- (NSArray *)stringsFromText:(NSString *)string {
-    NSMutableArray *stringsArray = [[string componentsSeparatedByString:@" "] mutableCopy];
-    NSMutableArray *slicedString = [NSMutableArray array];
+- (void)calculateLinesOfText {
+    NSMutableArray *stringsArray = [[self.text componentsSeparatedByString:@" "] mutableCopy];
+    NSMutableArray *newSlicedStrings = [NSMutableArray array];
+    NSMutableArray *newLineWidths = [NSMutableArray array];
     
     while (stringsArray.count != 0) {
         NSString *line = [NSString stringWithString:@""];
         NSMutableIndexSet *wordsToRemove = [NSMutableIndexSet indexSet];
-        
+        float lastWidth;
+
         for (int i = 0; i < [stringsArray count]; i++) {
             NSString *word = [stringsArray objectAtIndex:i];
             
-            if ([[line stringByAppendingFormat:@"%@ ", word] sizeWithFont:self.font].width <= self.frame.size.width) {
+            CGSize lineSize = [[line stringByAppendingFormat:@"%@ ", word] sizeWithFont:self.font];
+            if (lineSize.width <= self.frame.size.width) {
                 line = [line stringByAppendingFormat:@"%@ ", word];
                 [wordsToRemove addIndex:i];
+                lastWidth = lineSize.width;
             } else {
                 if (line.length == 0) {
                     line = [line stringByAppendingFormat:@"%@ ", word];
                     [wordsToRemove addIndex:i];
+                    lastWidth = [line sizeWithFont:self.font].width;
                 }
                 break;
             }
         }
-        [slicedString addObject:[line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]]];
+        [newSlicedStrings addObject:[line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]]];
+        [newLineWidths addObject:[NSNumber numberWithFloat:lastWidth]];
         [stringsArray removeObjectsAtIndexes:wordsToRemove];
     }
+    lineWidths = newLineWidths;
     
-    if (slicedString.count > self.numberOfLines && self.numberOfLines != 0) {
-        NSString *line = [slicedString objectAtIndex:(self.numberOfLines - 1)];
+    if (newSlicedStrings.count > self.numberOfLines && self.numberOfLines != 0) {
+        NSString *line = [newSlicedStrings objectAtIndex:(self.numberOfLines - 1)];
         line = [line stringByReplacingCharactersInRange:NSMakeRange(line.length - 3, 3) withString:@"..."];
-        [slicedString removeObjectAtIndex:(self.numberOfLines - 1)];
-        [slicedString insertObject:line atIndex:(self.numberOfLines - 1)];
+        [newSlicedStrings removeObjectAtIndex:(self.numberOfLines - 1)];
+        [newSlicedStrings insertObject:line atIndex:(self.numberOfLines - 1)];
     }
-    
-    return slicedString;
+    slicedStrings = newSlicedStrings;
+
+    NSMutableArray *newLinePositions = [NSMutableArray array];
+    for (int i = 0; i < slicedStrings.count; i++) {
+        if (i + 1 > self.numberOfLines && self.numberOfLines != 0)
+            break;
+        
+        CGPoint pos;
+        // calculate y based on anchor
+        //int drawHeight = _anchorBottom ? (self.frame.size.height - (slicedStrings.count - i) * _lineHeight) : i * _lineHeight;        
+        pos.y = i * self.lineHeight;
+        
+        // calculate x based on textAlignment
+        pos.x = 0;
+        if (self.textAlignment == UITextAlignmentCenter) {
+            pos.x = floorf((self.frame.size.width - [[newLineWidths objectAtIndex:i] floatValue]) / 2);
+        } else if (self.textAlignment == UITextAlignmentRight) {
+            pos.x = (self.frame.size.width - [[newLineWidths objectAtIndex:i] floatValue]);
+        }
+        
+        [newLinePositions addObject:[NSValue valueWithCGPoint:pos]];
+    }
+    slicedStrings = newSlicedStrings;
+    linePositions = newLinePositions;
 }
 
-- (void)configureStrikethrough
+- (void)drawStrikethrough
 {
-    if (self.strikethrough) {
+/*    if (self.strikethrough) {
         if (lineLayers) {
             for (CAShapeLayer *layer in lineLayers) [layer removeFromSuperlayer];
         }
         
-        float singleLineHeight = [@"M" sizeWithFont:self.font].height; // @todo cache somehow?
-        CGSize textSize = [self.text sizeWithFont:self.font constrainedToSize:self.frame.size lineBreakMode:self.lineBreakMode];
-        int numberOfLines = textSize.height / singleLineHeight;
+        int actualNumberOfLines = MIN(slicedStrings.count, self.numberOfLines);
         
         // Text is centered. Figure out where it starts vertically.
         lineLayers = [[NSMutableArray alloc] initWithCapacity:numberOfLines];
@@ -183,7 +200,7 @@
         }
         lineLayers = nil;
         self.alpha = 1;
-    }
+    }*/
 }
 
 
