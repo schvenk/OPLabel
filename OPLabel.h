@@ -8,11 +8,10 @@
 
 @property (nonatomic, assign) int lineHeight;
 @property (nonatomic) BOOL strikethrough;
-@property (nonatomic) BOOL animateChanges;
 @property (nonatomic) UIControlContentVerticalAlignment contentVerticalAlignment;
 @property (nonatomic) float verticalOffset;
 
 - (float)getHeight;
-- (void)drawStrikethrough:(BOOL)strikethrough completion:(void (^)(void))completion;
+- (void)animateAddingStrikethroughWithCompletion:(void (^)(void))completion;
 
 @end

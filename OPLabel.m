@@ -14,10 +14,11 @@
     NSArray *slicedStrings;
     NSArray *lineWidths;
     NSArray *linePositions;
+    BOOL isAnimating;
 }
 - (void)calculateLinesOfText;
-- (void)drawStrikethrough;
-- (void)animateDrawingStrikethroughWithCompletion:(void (^)(void))completion;
+- (void)drawStrikethrough:(BOOL)newStrikethrough animate:(BOOL)animate completion:(void (^)(void))completion;
+- (void)executeStrikethroughAnimationWithCompletion:(void (^)(void))completion;
 @end
 
 #define AnimationDuration 0.6
@@ -26,7 +27,6 @@
 @implementation OPLabel
 @synthesize lineHeight = _lineHeight;
 @synthesize strikethrough = _strikethrough;
-@synthesize animateChanges = _animateChanges;
 @synthesize verticalOffset = _verticalOffset;
 @synthesize contentVerticalAlignment = _contentVerticalAlignment;
 
@@ -50,8 +50,90 @@
         NSString *line = [slicedStrings objectAtIndex:i];
         [line drawAtPoint:[[linePositions objectAtIndex:i] CGPointValue] forWidth:self.frame.size.width withFont:self.font fontSize:self.font.pointSize lineBreakMode:UILineBreakModeClip baselineAdjustment:UIBaselineAdjustmentNone];
     }
+        
+    if (!isAnimating) [self drawStrikethrough:_strikethrough animate:NO completion:nil];
+}
+
+
+
+
+#pragma mark - Strikethrough
+
+- (void)animateAddingStrikethroughWithCompletion:(void (^)(void))completion
+{
+    [self drawStrikethrough:YES animate:YES completion:completion];
+}
+
+- (void)drawStrikethrough:(BOOL)newStrikethrough animate:(BOOL)animate completion:(void (^)(void))completion
+{
+    if (newStrikethrough) {
+        // Add strikethrough
+        
+        if (lineLayers) {
+            for (CAShapeLayer *layer in lineLayers) [layer removeFromSuperlayer];
+        }
+        
+        // Text is centered. Figure out where it starts vertically.
+        lineLayers = [[NSMutableArray alloc] initWithCapacity:linePositions.count];
+        float lineOffset = naturalLineHeight/2;
+        for (int i=0;i<linePositions.count;i++) {
+            CGPoint textPos = [[linePositions objectAtIndex:i] CGPointValue];
+            float lineY = textPos.y + lineOffset;
+            UIBezierPath *linePath = [[UIBezierPath alloc] init];
+            [linePath moveToPoint:CGPointMake(textPos.x, lineY)];
+            [linePath addLineToPoint:CGPointMake(textPos.x + [[lineWidths objectAtIndex:i] floatValue], lineY)];
+            
+            CAShapeLayer *layer = [[CAShapeLayer alloc] init];
+            layer.path = linePath.CGPath;
+            layer.strokeColor = self.textColor.CGColor;
+            layer.lineWidth = 2;
+            if (animate) layer.strokeEnd = 0;
+            [self.layer addSublayer:layer];
+            [lineLayers addObject:layer];
+        }
+        
+        if (animate) {
+            // Seems to be necessary in order to let the last strokeEnd value "take" or something
+            isAnimating = YES;
+            [self performSelector:@selector(executeStrikethroughAnimationWithCompletion:) withObject:completion afterDelay:0.01]; // @todo Why is 0 insufficient?
+        } else {
+            self.alpha = StrikethroughAlpha;
+            _strikethrough = YES; // Explicitly not using accessor here
+        }
+    } else {
+        // Remove strikethrough
+        
+        if (lineLayers) {
+            for (CAShapeLayer *layer in lineLayers) [layer removeFromSuperlayer];
+        }
+        lineLayers = nil;
+        self.alpha = 1;
+        if (completion) completion();
+        _strikethrough = NO; // Explicitly not using accessor here
+    }
+}
+
+- (void)executeStrikethroughAnimationWithCompletion:(void (^)(void))completion
+{
+    NSLog(@"animation started");
+    [CATransaction setCompletionBlock:^{
+        isAnimating = NO;
+        NSLog(@"completion");
+        if (completion) completion();
+    }];
+    [CATransaction begin];
+    [CATransaction setValue:[NSNumber numberWithFloat:AnimationDuration] forKey:kCATransactionAnimationDuration];
+    [CATransaction setAnimationTimingFunction:[CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionLinear]];
+    for (CAShapeLayer *lineLayer in lineLayers) {
+        lineLayer.strokeEnd = 1;
+    }
     
-    [self drawStrikethrough];
+    [CATransaction commit];
+    
+    [UIView animateWithDuration:2*AnimationDuration/3 delay:AnimationDuration/3 options:UIViewAnimationOptionCurveEaseIn animations:^{
+        self.alpha = StrikethroughAlpha;
+    } completion:nil];
+    
 }
 
 
@@ -78,7 +160,7 @@
 {
     if (strikethrough != _strikethrough) {
         _strikethrough = strikethrough;
-        [self setNeedsDisplay];
+        //[self setNeedsDisplay];
     }
 }
 
@@ -165,70 +247,5 @@
     slicedStrings = newSlicedStrings;
     linePositions = newLinePositions;
 }
-
-
-- (void)drawStrikethrough:(BOOL)strikethrough completion:(void (^)(void))completion
-{
-    if (self.strikethrough) {
-        if (lineLayers) {
-            for (CAShapeLayer *layer in lineLayers) [layer removeFromSuperlayer];
-        }
-        
-        // Text is centered. Figure out where it starts vertically.
-        lineLayers = [[NSMutableArray alloc] initWithCapacity:linePositions.count];
-        float lineOffset = naturalLineHeight/2;
-        for (int i=0;i<linePositions.count;i++) {
-            CGPoint textPos = [[linePositions objectAtIndex:i] CGPointValue];
-            float lineY = textPos.y + lineOffset;
-            UIBezierPath *linePath = [[UIBezierPath alloc] init];
-            [linePath moveToPoint:CGPointMake(textPos.x, lineY)];
-            [linePath addLineToPoint:CGPointMake(textPos.x + [[lineWidths objectAtIndex:i] floatValue], lineY)];
-            
-            CAShapeLayer *layer = [[CAShapeLayer alloc] init];
-            layer.path = linePath.CGPath;
-            layer.strokeColor = self.textColor.CGColor;
-            layer.lineWidth = 2;
-            if (self.animateChanges) layer.strokeEnd = 0;
-            [self.layer addSublayer:layer];
-            [lineLayers addObject:layer];
-        }
-        
-        if (self.animateChanges) {
-            // Seems to be necessary in order to let the last strokeEnd value "take" or something
-            [self performSelector:@selector(animateDrawingStrikethroughWithCompletion:) withObject:completion afterDelay:0];
-        } else self.layer.opacity = StrikethroughAlpha;
-    } else {
-        if (lineLayers) {
-            for (CAShapeLayer *layer in lineLayers) [layer removeFromSuperlayer];
-        }
-        lineLayers = nil;
-        self.alpha = 1;
-        if (completion) completion();
-    }
-    self.animateChanges = NO;
-}
-
-- (void)animateDrawingStrikethroughWithCompletion:(void (^)(void))completion
-{
-    [CATransaction begin];
-        [CATransaction setValue:[NSNumber numberWithFloat:0.75] forKey:kCATransactionAnimationDuration];
-    [CATransaction setAnimationTimingFunction:[CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionLinear]];
-        if (completion) [CATransaction setCompletionBlock:completion];
-        for (CAShapeLayer *lineLayer in lineLayers) {
-            lineLayer.strokeEnd = 1;
-        }
-    [CATransaction commit];
-    
-    [UIView animateWithDuration:2*AnimationDuration/3 delay:AnimationDuration/3 options:UIViewAnimationOptionCurveEaseIn animations:^{
-     self.alpha = StrikethroughAlpha;
-     } completion:nil];
-
-}
-
-- (void)drawStrikethrough
-{
-    [self drawStrikethrough:self.strikethrough completion:nil];
-}
-
 
 @end
