@@ -167,9 +167,8 @@
 }
 
 
-- (void)drawStrikethroughWithBlockOnCompletion:(void (^)(void))completion
+- (void)drawStrikethrough:(BOOL)strikethrough completion:(void (^)(void))completion
 {
-    if (completion) self.animateChanges = YES;
     if (self.strikethrough) {
         if (lineLayers) {
             for (CAShapeLayer *layer in lineLayers) [layer removeFromSuperlayer];
@@ -204,6 +203,7 @@
         }
         lineLayers = nil;
         self.alpha = 1;
+        if (completion) completion();
     }
     self.animateChanges = NO;
 }
@@ -227,7 +227,7 @@
 
 - (void)drawStrikethrough
 {
-    [self drawStrikethroughWithBlockOnCompletion:nil];
+    [self drawStrikethrough:self.strikethrough completion:nil];
 }
 
 
