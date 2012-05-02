@@ -13,5 +13,6 @@
 @property (nonatomic) float verticalOffset;
 
 - (float)getHeight;
+- (void)drawStrikethroughWithBlockOnCompletion:(void (^)(void))completion;
 
 @end

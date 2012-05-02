@@ -17,6 +17,7 @@
 }
 - (void)calculateLinesOfText;
 - (void)drawStrikethrough;
+- (void)animateDrawingStrikethroughWithCompletion:(void (^)(void))completion;
 @end
 
 #define AnimationDuration 0.6
@@ -165,8 +166,10 @@
     linePositions = newLinePositions;
 }
 
-- (void)drawStrikethrough
+
+- (void)drawStrikethroughWithBlockOnCompletion:(void (^)(void))completion
 {
+    if (completion) self.animateChanges = YES;
     if (self.strikethrough) {
         if (lineLayers) {
             for (CAShapeLayer *layer in lineLayers) [layer removeFromSuperlayer];
@@ -186,28 +189,14 @@
             layer.path = linePath.CGPath;
             layer.strokeColor = self.textColor.CGColor;
             layer.lineWidth = 2;
+            if (self.animateChanges) layer.strokeEnd = 0;
             [self.layer addSublayer:layer];
             [lineLayers addObject:layer];
         }
         
         if (self.animateChanges) {
-            for (CAShapeLayer *lineLayer in lineLayers) {
-                lineLayer.strokeEnd = 0;
-                
-                CABasicAnimation *drawAnim = [CABasicAnimation animationWithKeyPath:@"strokeEnd"];
-                drawAnim.duration = AnimationDuration;
-                drawAnim.fromValue = [NSNumber numberWithFloat:0];
-                drawAnim.toValue = [NSNumber numberWithFloat:1];
-                drawAnim.removedOnCompletion = NO;
-                drawAnim.fillMode = kCAFillModeForwards;
-                
-                [lineLayer addAnimation:drawAnim forKey:@"drawAnim"];
-                lineLayer.strokeEnd = 1;
-            }
-            
-            [UIView animateWithDuration:2*AnimationDuration/3 delay:AnimationDuration/3 options:UIViewAnimationOptionCurveEaseIn animations:^{
-                self.alpha = StrikethroughAlpha;
-            } completion:nil];
+            // Seems to be necessary in order to let the last strokeEnd value "take" or something
+            [self performSelector:@selector(animateDrawingStrikethroughWithCompletion:) withObject:completion afterDelay:0];
         } else self.layer.opacity = StrikethroughAlpha;
     } else {
         if (lineLayers) {
@@ -217,6 +206,28 @@
         self.alpha = 1;
     }
     self.animateChanges = NO;
+}
+
+- (void)animateDrawingStrikethroughWithCompletion:(void (^)(void))completion
+{
+    [CATransaction begin];
+        [CATransaction setValue:[NSNumber numberWithFloat:0.75] forKey:kCATransactionAnimationDuration];
+    [CATransaction setAnimationTimingFunction:[CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionLinear]];
+        if (completion) [CATransaction setCompletionBlock:completion];
+        for (CAShapeLayer *lineLayer in lineLayers) {
+            lineLayer.strokeEnd = 1;
+        }
+    [CATransaction commit];
+    
+    [UIView animateWithDuration:2*AnimationDuration/3 delay:AnimationDuration/3 options:UIViewAnimationOptionCurveEaseIn animations:^{
+     self.alpha = StrikethroughAlpha;
+     } completion:nil];
+
+}
+
+- (void)drawStrikethrough
+{
+    [self drawStrikethroughWithBlockOnCompletion:nil];
 }
 
 
