@@ -95,7 +95,7 @@
         if (animate) {
             // Seems to be necessary in order to let the last strokeEnd value "take" or something
             isAnimating = YES;
-            [self performSelector:@selector(executeStrikethroughAnimationWithCompletion:) withObject:completion afterDelay:0.01]; // @todo Why is 0 insufficient?
+            [self performSelector:@selector(executeStrikethroughAnimationWithCompletion:) withObject:completion afterDelay:0.1]; // @todo Why is 0 insufficient?
         } else {
             self.alpha = StrikethroughAlpha;
             _strikethrough = YES; // Explicitly not using accessor here
@@ -107,18 +107,23 @@
             for (CAShapeLayer *layer in lineLayers) [layer removeFromSuperlayer];
         }
         lineLayers = nil;
-        self.alpha = 1;
-        if (completion) completion();
+        if (self.alpha != 1) {
+            [UIView animateWithDuration:AnimationDuration*2/3 delay:0 options:UIViewAnimationOptionCurveEaseIn animations:^{
+                self.alpha = 1;
+            } completion:^(BOOL finished) {
+                if (completion) completion();
+            }];
+        } else {
+            if (completion) completion();
+        }
         _strikethrough = NO; // Explicitly not using accessor here
     }
 }
 
 - (void)executeStrikethroughAnimationWithCompletion:(void (^)(void))completion
 {
-    NSLog(@"animation started");
     [CATransaction setCompletionBlock:^{
         isAnimating = NO;
-        NSLog(@"completion");
         if (completion) completion();
     }];
     [CATransaction begin];
