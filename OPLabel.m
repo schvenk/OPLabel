@@ -20,7 +20,6 @@
 @end
 
 #define AnimationDuration 0.6
-#define StrikethroughAlpha 0.3
 
 @implementation OPLabel
 @synthesize lineHeight = _lineHeight;
@@ -28,6 +27,7 @@
 @synthesize animateChanges = _animateChanges;
 @synthesize verticalOffset = _verticalOffset;
 @synthesize contentVerticalAlignment = _contentVerticalAlignment;
+@synthesize strikethroughAlpha = _strikethroughAlpha;
 
 
 - (id)initWithFrame:(CGRect)frame
@@ -36,6 +36,7 @@
     if (self) {
         naturalLineHeight = [@"M" sizeWithFont:self.font].height;
         _lineHeight = naturalLineHeight;
+        _strikethroughAlpha = 0.23;
     }
     return self;
 }
@@ -206,9 +207,9 @@
             }
             
             [UIView animateWithDuration:2*AnimationDuration/3 delay:AnimationDuration/3 options:UIViewAnimationOptionCurveEaseIn animations:^{
-                self.alpha = StrikethroughAlpha;
+                self.alpha = self.strikethroughAlpha;
             } completion:nil];
-        } else self.layer.opacity = StrikethroughAlpha;
+        } else self.layer.opacity = self.strikethroughAlpha;
     } else {
         if (lineLayers) {
             for (CAShapeLayer *layer in lineLayers) [layer removeFromSuperlayer];
@@ -218,6 +219,5 @@
     }
     self.animateChanges = NO;
 }
-
 
 @end
