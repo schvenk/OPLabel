@@ -103,7 +103,7 @@
     NSMutableArray *newLineWidths = [NSMutableArray array];
     
     while (stringsArray.count != 0) {
-        NSString *line = [NSString stringWithString:@""];
+        NSString *line = @"";
         NSMutableIndexSet *wordsToRemove = [NSMutableIndexSet indexSet];
         float lastWidth;
 
