@@ -34,7 +34,7 @@
 {
     self = [super initWithFrame:frame];
     if (self) {
-        naturalLineHeight = [@"M" sizeWithFont:self.font].height;
+        naturalLineHeight = [self lineHeightForFont:self.font];
         _lineHeight = naturalLineHeight;
         _strikethroughAlpha = 0.23;
     }
@@ -48,7 +48,8 @@
     // linePositions is the only global array reflecting the actual number of lines
     for (int i = 0; i < linePositions.count; i++) {
         NSString *line = [slicedStrings objectAtIndex:i];
-        [line drawAtPoint:[[linePositions objectAtIndex:i] CGPointValue] forWidth:self.frame.size.width withFont:self.font fontSize:self.font.pointSize lineBreakMode:UILineBreakModeClip baselineAdjustment:UIBaselineAdjustmentNone];
+        CGPoint pt = [[linePositions objectAtIndex:i] CGPointValue];
+        [line drawInRect:CGRectMake(pt.x, pt.y, self.frame.size.width, self.frame.size.height) withAttributes:@{NSFontAttributeName: self.font}];
     }
     
     [self drawStrikethrough];
@@ -84,7 +85,7 @@
 
 - (void)setFont:(UIFont *)font
 {
-    naturalLineHeight = [@"M" sizeWithFont:font].height;
+    naturalLineHeight = [self lineHeightForFont:font];
     if (!explicitLineHeight) _lineHeight = naturalLineHeight;
     [super setFont:font];
 }
@@ -105,12 +106,12 @@
     while (stringsArray.count != 0) {
         NSString *line = @"";
         NSMutableIndexSet *wordsToRemove = [NSMutableIndexSet indexSet];
-        float lastWidth;
+        float lastWidth = 0.0;
 
         for (int i = 0; i < [stringsArray count]; i++) {
             NSString *word = [stringsArray objectAtIndex:i];
             
-            CGSize lineSize = [[line stringByAppendingFormat:@"%@", word] sizeWithFont:self.font];
+            CGSize lineSize = [[line stringByAppendingFormat:@"%@", word] sizeWithAttributes:@{NSFontAttributeName: self.font}];
             if (lineSize.width <= self.frame.size.width) {
                 line = [line stringByAppendingFormat:@"%@ ", word];
                 [wordsToRemove addIndex:i];
@@ -119,7 +120,7 @@
                 if (line.length == 0) {
                     line = [line stringByAppendingFormat:@"%@ ", word];
                     [wordsToRemove addIndex:i];
-                    lastWidth = [line sizeWithFont:self.font].width;
+                    lastWidth = [line sizeWithAttributes:@{NSFontAttributeName: self.font}].width;
                 }
                 break;
             }
@@ -138,7 +139,7 @@
     }
     slicedStrings = newSlicedStrings;
 
-    int actualNumberOfLines = (self.numberOfLines > 0) ? MIN(slicedStrings.count, self.numberOfLines) : slicedStrings.count;
+    int actualNumberOfLines = (self.numberOfLines > 0) ? (int)MIN(slicedStrings.count, self.numberOfLines) : (int)(slicedStrings.count);
     NSMutableArray *newLinePositions = [NSMutableArray array];
     
     // Figure out where to start drawing the text based on vertical alignment setting
@@ -154,9 +155,9 @@
         
         // calculate x based on textAlignment
         pos.x = 0;
-        if (self.textAlignment == UITextAlignmentCenter) {
+        if (self.textAlignment == NSTextAlignmentCenter) {
             pos.x = floorf((self.frame.size.width - [[newLineWidths objectAtIndex:i] floatValue]) / 2);
-        } else if (self.textAlignment == UITextAlignmentRight) {
+        } else if (self.textAlignment == NSTextAlignmentRight) {
             pos.x = (self.frame.size.width - [[newLineWidths objectAtIndex:i] floatValue]);
         }
         
@@ -166,8 +167,7 @@
     linePositions = newLinePositions;
 }
 
-- (void)drawStrikethrough
-{
+- (void)drawStrikethrough {
     if (self.strikethrough) {
         if (lineLayers) {
             for (CAShapeLayer *layer in lineLayers) [layer removeFromSuperlayer];
@@ -218,6 +218,10 @@
         self.alpha = 1;
     }
     self.animateChanges = NO;
+}
+
+- (CGFloat)lineHeightForFont:(UIFont *)font {
+    return [@"M" sizeWithAttributes:@{NSFontAttributeName:font}].height;
 }
 
 @end
