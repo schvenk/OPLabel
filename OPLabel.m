@@ -43,13 +43,14 @@
 
 - (void)drawTextInRect:(CGRect)rect {
     [self calculateLinesOfText];
-    [self.textColor set];
+    [self.textColor set]; // TODO necessary?
     
     // linePositions is the only global array reflecting the actual number of lines
     for (int i = 0; i < linePositions.count; i++) {
         NSString *line = [slicedStrings objectAtIndex:i];
         CGPoint pt = [[linePositions objectAtIndex:i] CGPointValue];
-        [line drawInRect:CGRectMake(pt.x, pt.y, self.frame.size.width, self.frame.size.height) withAttributes:@{NSFontAttributeName: self.font}];
+        [line drawInRect:CGRectMake(pt.x, pt.y, self.frame.size.width, self.frame.size.height)
+          withAttributes:@{NSFontAttributeName: self.font, NSForegroundColorAttributeName: self.textColor}];
     }
     
     [self drawStrikethrough];
