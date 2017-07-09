@@ -187,7 +187,7 @@
             CAShapeLayer *layer = [[CAShapeLayer alloc] init];
             layer.path = linePath.CGPath;
             layer.strokeColor = self.textColor.CGColor;
-            layer.lineWidth = 2;
+            layer.lineWidth = 1;
             [self.layer addSublayer:layer];
             [lineLayers addObject:layer];
         }
